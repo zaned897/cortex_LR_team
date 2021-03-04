@@ -45,7 +45,7 @@ print('.'*50 + '\n'*3)
 #---------------------------------------------------------------------------------------
 
 # default files
-FILE = '../docs/lossruns_feasibility/MultipleClaims2.pdf' # file pdf to process
+FILE = '../docs/lossruns_feasibility/MultipleClaims3.pdf' # file pdf to process
 MODEL_PATH = '../models/lossrun_models/lr_lt_v1' # NLP model, contains the NER PARSER AND TAGGER
 
 # time the pdf to image transform time 

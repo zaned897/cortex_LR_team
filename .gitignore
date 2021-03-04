@@ -1,8 +1,7 @@
 # Internal files
 
 models/
-
-
+NPDB/data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -1,0 +1,47 @@
+[
+  {
+    "license": "0S9841, FL', ' 4835, AZ'",
+    "npi": "1831199983",
+    "dcn": "5500000083945866",
+    "entity_name": "'LEXINGTON INSURANCE COMPANY', 'LEXINGTON INSURANCE COMPANY'",
+    "practitioner_name": "'BERECZKI, ZOLTAN JR', 'LASER SPINE INSTITUTE'",
+    "action_initial": "'SETTLEMENT'",
+    "action_basis": "'IMPROPERLY PERFORMED TEST'",
+    "event_outcome": "'MINOR PERMANENT INJURY (05)'",
+    "process_date": "8/16/2013",
+    "payment_date": "5/15/2013",
+    "event_day": "10/21/2008",
+    "amount_pract": "244622",
+    "payment_total_amount": "244622"
+  },
+  {
+    "license": "'0S9841, FL', ' 4835, AZ', '0S9841, PA'",
+    "npi": "1831199983",
+    "dcn": "5500000082199846",
+    "entity_name": "'LASER SPINE INSTITUTE', 'LASER SPINE INSTITUTE LLC'",
+    "practitioner_name": "'BERECZKI, ZOLTON JR', 'LASER SPINE INSTITUTE'",
+    "action_initial": "'SETTLEMENT'",
+    "action_basis": "'IMPROPER PERFORMANCE'",
+    "event_outcome": "'MINOR PERMANENT INJURY (05)'",
+    "process_date": "5/17/2013",
+    "payment_date": "5/14/2013",
+    "event_day": "10/21/2008",
+    "amount_pract": "155377",
+    "payment_total_amount": "155377"
+  },
+  {
+    "license": "'0S9841, FL', ' 4835, AZ', '0S9841, PA'",
+    "npi": "1831199983",
+    "dcn": "5500000077944634",
+    "entity_name": "'LEXINGTON INSURANCE COMPANY', 'LEXINGTON INSURANCE COMPANY'",
+    "practitioner_name": "'BERECZKI, ZOLTAN JR', 'LASER SPINE INSTITUTE'",
+    "action_initial": "'SETTLEMENT'",
+    "action_basis": "'WRONG PROCEDURE OR TREATMENT'",
+    "event_outcome": "'MINOR PERMANENT INJURY (05)'",
+    "process_date": "10/18/2012",
+    "payment_date": "6/20/2012",
+    "event_day": "10/12/2010",
+    "amount_pract": "150000",
+    "payment_total_amount": "650000"
+  }
+]

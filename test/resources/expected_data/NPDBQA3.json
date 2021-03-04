@@ -1,0 +1,17 @@
+[
+  {
+    "license": "'PA04912, TX'",
+    "npi": "1972719151",
+    "dcn": "5500000069864162",
+    "entity_name": "'THE MEDICAL PROTECTIVE COMPANY', 'THE MEDICAL PROTECTIVE COMPANY'",
+    "practitioner_name": "'RICKERT, JEFF C'",
+    "action_initial": "'SETTLEMENT'",
+    "action_basis": "'FAILURE TO DIAGNOSE'",
+    "event_outcome": "'DEATH (09)'",
+    "process_date": "08/02/2011",
+    "payment_date": "07/21/2011",
+    "event_day": "08/18/2010",
+    "amount_pract": "240000",
+    "payment_total_amount": "240000"
+  }
+]

@@ -1,0 +1,17 @@
+[
+  {
+    "license": "'97290, FL'",
+    "npi": "1952483356",
+    "dcn": "5500000071739107",
+    "entity_name": "'DIVISION OF MEDICAL QUALITY ASSURANCE', 'DIVISION OF MEDICAL QUALITY ASSURANCE'",
+    "practitioner_name": "'RENTAS, EVELYN'",
+    "action_initial": "'REPRIMAND OR CENSURE', 'PUBLICLY AVAILABLE FINE/MONETARY PENALTY'",
+    "action_basis": "'VIOLATION OF FEDERAL OR STATE STATUTES, REGULATIONS OR RULES', 'NOLO CONTENDERE PLEA', 'ERROR IN PRESCRIBING, DISPENSING OR ADMINISTERING MEDICATION'",
+    "event_outcome": null,
+    "process_date": "11/15/2011",
+    "payment_date": "11/10/2011",
+    "event_day": "11/10/2011",
+    "amount_pract": "8903",
+    "payment_total_amount": null
+  }
+]

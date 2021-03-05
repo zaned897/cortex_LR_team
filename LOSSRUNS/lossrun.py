@@ -12,6 +12,7 @@ from cv2 import IMREAD_GRAYSCALE
 from pdf2image import convert_from_path
 import pytesseract as pt
 from pytesseract import Output
+from pytesseract.pytesseract import run_tesseract
 #from gensim.models import KeyedVectors
 from skimage.metrics import structural_similarity
 from string import punctuation
@@ -21,6 +22,7 @@ from pandas import DataFrame
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import GaussianNB
 from sklearn.metrics import accuracy_score
+from spacy.util import registry
 
 """
 def load_context_model():
@@ -519,7 +521,7 @@ def get_NB(train_data = '../test/test_data_NB_class_claim_policy.csv', train_per
 
 
 
-def isaclaim(claim=''):
+def isaclaim(claim='', length = 7):
     """Check if a string has the format of a claim number (AANN.-NNA)
     Iput: (string) suspect claim
     Output: (bool) True if has the claim format
@@ -530,7 +532,7 @@ def isaclaim(claim=''):
     months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
     
     # properties of claims
-    match_length = len(claim)>=7
+    match_length = len(claim)>=length
     match_digits = any(char.isdigit() for char in claim)
     match_special_chars = not any(char in punkt for char in claim)
     match_no_dates = not any(month in claim.lower() for month in months)
@@ -578,7 +580,21 @@ def boundig_box(dictionary, index):
 
     return [(x1,y1), (x2,y2)]
 
+def same_row(dictionary, reference):
+    """
+    Check if words in same row
+    """
 
+    text_in_row = []
+
+    for idx, word in enumerate(dictionary['text']):
+        top_ref = dictionary['top'][dictionary['text'].index(reference)]
+        
+        if (top_ref -5) < dictionary['top'][idx] < (top_ref + 5):
+            text_in_row.append(word.lower())
+    
+    return text_in_row
+    
 def cross_search(dictionary, topic, reference):
     """Special function to extract the intersection point for a topic of two elements
         i.e., total-paid
@@ -621,6 +637,58 @@ def there_are_claims(dictionary, claims):
 
 
     return rule0 and (rule1 or rule2 or rule3)
+
+
+def validation_0(dictionary):
+    """
+    Validate sentences assosoated to NO CLAIMS
+    """
+    # add intersection formats i.e.,    claim
+    #                              total: 0
+
+
+    return there_are_claims()
+
+
+def validations_1(dictionary, train_data, percent_train = .7): 
+    """
+    Validate if len (claims >= 7), if not len claims == 5
+    """
+
+    # Get the NB model for predict claim/policy
+    model = get_NB(train_data=train_data, train_percent= percent_train)
+
+    # create the interest variables
+    claims_policies, claims, policies, extras = [], [], [], []
+
+    # extract the claims/policies suspects and their features
+    for idx, word in enumerate(dictionary['text']):
+        
+        if isaclaim(word):
+            features = get_features(dictionary, word, idx)
+            claims_policies.append(features) 
+
+    # evaluate each suspect
+    for suspect in claims_policies:
+        if model.predict(np.array([suspect[1:]]) + 1) == 0: # 0 == policy
+            policies.append(suspect[0])
+        elif model.predict(np.array([suspect[1:]]) + 1) == 1: # 1 == claim, -1 == other sus 
+            claims.append(suspect[0])
+        else:
+            extras.append(suspect)
+
+    return len(claims) == 0
+
+
+def validation_2 (dictionary, suspect, syn_list):
+    """
+    Policies suspects in the same row policy num, pol nbr, etc.
+    """
+    elements_in_row = same_row(dictionary, suspect)
+
+    return  any(syn.lower() in elements_in_row for syn in syn_list)
+            
+
 
 def print_help():
     help_message = """

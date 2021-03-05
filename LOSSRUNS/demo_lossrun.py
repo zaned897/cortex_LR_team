@@ -17,11 +17,13 @@ date: Feb 2021
 
 #%%                             LOAD DEPENDENCIES
 import re
+
+from pandas.io.parsers import FixedWidthReader
 import lossrun
 
 from numpy import array
 from spacy import load
-from matplotlib.pyplot import figure
+from matplotlib.pyplot import cla, figure
 from collections import defaultdict
 from matplotlib.pyplot import imshow
 from pdf2image import convert_from_path
@@ -45,7 +47,8 @@ print('.'*50 + '\n'*3)
 #---------------------------------------------------------------------------------------
 
 # default files
-FILE = '../docs/lossruns_feasibility/MultipleClaims3.pdf' # file pdf to process
+FILE = '../data/lossruns/Challenge4.pdf' # file pdf to process
+
 MODEL_PATH = '../models/lossrun_models/lr_lt_v1' # NLP model, contains the NER PARSER AND TAGGER
 
 # time the pdf to image transform time 
@@ -157,7 +160,7 @@ for idx, word in enumerate(dictionary['text']):
 #%
 # get the trained model Naive Bayes model
 data_train_nb = '../test/processed_NB_train_data.csv'
-train_percent = 1
+train_percent = .8
 model = lossrun.get_NB(data_train_nb, train_percent)
 
 # extract the claims and policies in report according NB model

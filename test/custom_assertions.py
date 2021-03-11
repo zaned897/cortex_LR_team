@@ -29,13 +29,11 @@ class CustomAssertions(object):
             except jsonschema.exceptions.ValidationError as validation_error:
                 return self.assertTrue(False)
 
-    def assert_fields(self, result, expected_data):
+    def assert_fields(self, results, expected_data):
         print("Validating fields...")
-        for field in FIELDS:
-            try:
-                if isinstance(result[field], list) and isinstance(expected_data[field], list):
-                  result[field].sort()
-                  expected_data[field].sort()
-                self.assertTrue(result[field] == expected_data[field])
-            except KeyError as e:
-                self.assertTrue(False)
+        for result, expected in zip(results, expected_data):
+          for field in FIELDS:
+              try:
+                  self.assertTrue(result[field] == expected[field])
+              except KeyError as e:
+                  self.assertTrue(False)

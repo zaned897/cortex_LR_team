@@ -19,7 +19,7 @@ import lossrun                          # local tools for loss run reports
 
 
 
-def run(PATH='./data/NPDBQA6.pdf'):
+def run(PATH='/home/app/NPDB/data/NPDBQA6.pdf'):
     #%%                         DEFINE THE OPTIONS OF THE CODE
     args_list = sys.argv[1:]    # options: file to process, path to nlp model and database available?
     args_flags = 'hf:m:d:'      # short options
@@ -36,7 +36,7 @@ def run(PATH='./data/NPDBQA6.pdf'):
 
 
     # Set the default nlp model and database insertion 
-    MODEL_PATH = '../models/npdb/latest/'
+    MODEL_PATH = '/home/app/models/npdb/latest/'
     db = False
 
     # assign the inputs to the script variables
@@ -239,8 +239,8 @@ def run(PATH='./data/NPDBQA6.pdf'):
         nlp = spacy.load(MODEL_PATH)
 
     # load the configuration files and declare grammar rules 
-    topic_conf = ConfigObj('./config/config_npdb_topics.ino')     # load the interest points
-    Topics = ConfigObj('./config/config_npdb_entites.ino')      # load the NAME ENTITY RULES 
+    topic_conf = ConfigObj('/home/app/NPDB/config/config_npdb_topics.ino')     # load the interest points
+    Topics = ConfigObj('/home/app/NPDB/config/config_npdb_entites.ino')      # load the NAME ENTITY RULES 
     open_exp = r"\b[A-Z][A-Z]+\b"                               # reg exp rules                
     mon_exp = r"[^0-9\.0-9]+"
     alpha_exp = r"(?=[A-Za-z])\w+.*(?=[a-z])\w+."
@@ -248,7 +248,7 @@ def run(PATH='./data/NPDBQA6.pdf'):
    
     # %%   
     # search for topics and entities
-    for dcn, claim in enumerate(claims): # search for dcn number in every claim 
+    for dcn, claim in enumerate(claims[1:]): # search for dcn number in every claim 
         
         suspects = lossrun.search_rules(claim, topic_conf)  # store the suspects (topic fit) 
         spatial_filter = lossrun.spatial_filter(claim, suspects, 'NPDB')    # process the spatial relation as an NPDB
@@ -480,3 +480,4 @@ def run(PATH='./data/NPDBQA6.pdf'):
     return data_results
     # END OF CODE
     # %%
+

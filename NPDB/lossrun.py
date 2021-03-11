@@ -461,7 +461,7 @@ def non_info_filter(pdf_path, resize_factor = (200,200), score = 0.6):
     # load pdf to evaluate
     images = convert_from_path(pdf_path, grayscale=True, size=resize_factor)
     # load template for compare non info pages
-    image_base = imread('./config/image_base.png', IMREAD_GRAYSCALE)
+    image_base = imread('/home/app/NPDB/config/image_base.png', IMREAD_GRAYSCALE)
     image_base = resize(image_base,resize_factor)
     # store the result 
     non_focuses = []
@@ -499,4 +499,5 @@ def print_help():
     license:        .
     """
     return help_message
+
 

@@ -24,29 +24,3 @@ plt.subplot(2, 1, 2), plt.imshow(image_test)
 print(mean_squared_error(image_test, image_base))
 
 # %%
-# 
-
-def check_null(dictionary) :
-
-    null_cases = ['0', '', '01/01/1900']
-
-    for _, item in enumerate(dictionary):
-        
-        if dictionary[item] in null_cases:
-            dictionary[item] = []
-
-    return dictionary            
-    
-
-x = {
-  "name": "",
-  "age": '0',
-  "city": "01/01/1900",
-  'last name': 'John Doe'
-}
-
-
-y = check_null(x)
-
-#%%
-y

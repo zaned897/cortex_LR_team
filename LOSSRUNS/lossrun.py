@@ -24,8 +24,7 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.metrics import accuracy_score
 from spacy.util import registry
 
-"""
-def load_context_model():
+"""def load_context_model():
     '''Load context model.
     Returns:
         model: A pre-trained model
@@ -569,6 +568,31 @@ def get_features(dictionary, word, idx):
     return [word ,x1, y1, delta, chars, nums, punkts, cons_chars, cons_nums]
 
 
+def boundingBox(dictionary, idx):
+    box = { "x1":dictionary['left'][idx],
+            "x2":dictionary['width'][idx] + dictionary['left'][idx],
+            "y1":dictionary['top'][idx],
+            "y2":dictionary['height'][idx] + dictionary['top'][idx],
+    }
+    return box
+
+def interWordBased(dictionary = dict({}), interest_list = list([]), ref = str("")):
+
+    interest = []
+    word_in_inter = []    
+    for idx, word in enumerate(dictionary['text']):
+        if word.upper() in interest_list:
+           interest.append(boundingBox(dictionary, idx))
+
+
+    for idx, word in enumerate(dictionary['text']):
+        if word != ''  and word.upper() not in interest_list:
+            word_box = boundingBox(dictionary, idx)
+            if any(word_box['x1'] < box['x2'] and word_box['x2'] > box['x1'] and word_box['y1'] > box['y1'] for box in interest):
+                if any(word_box['y1'] < box['y2'] and word_box['y2'] > box['y1'] and word_box['x1'] > box ['x1'] for box in interest):
+                    if any(char.isdigit() for char in word):
+                        word_in_inter.append([word, word_box['y1'], ref])
+    return word_in_inter
 
 
 def boundig_box(dictionary, index):
@@ -580,40 +604,22 @@ def boundig_box(dictionary, index):
 
     return [(x1,y1), (x2,y2)]
 
-def same_row(dictionary, reference):
-    """
-    Check if words in same row
-    """
 
-    text_in_row = []
 
-    for idx, word in enumerate(dictionary['text']):
-        top_ref = dictionary['top'][dictionary['text'].index(reference)]
-        
-        if (top_ref -5) < dictionary['top'][idx] < (top_ref + 5):
-            text_in_row.append(word.lower())
-    
-    return text_in_row
-    
-def cross_search(dictionary, topic, reference):
-    """Special function to extract the intersection point for a topic of two elements
-        i.e., total-paid
-    """
-    
+def cross_search(dictionary, topics):
+
     topic_coords = []
     for index, word in enumerate(dictionary['text']):
-        if word.upper() in topic:
-        #print(dictionaries[1]['top'][i],dictionaries[0]['left'][i],dictionaries[0]['text'][i])
-            topic_coords.append(boundig_box(dictionary, index))
+        if word.upper() in topics:
+           topic_coords.append(boundig_box(dictionary, index))
 
-    # get the word in the same row 
     words_in_row =[]
     for index, word in enumerate(dictionary['text']):
         t2 = dictionary['top'][index]
         h2 = dictionary['height'][index] + t2
         l2 = dictionary['left'][index]
         w2 = dictionary['width'][index] + l2
-        [words_in_row.append((word,l2,w2,t2)) for coord in topic_coords if h2>coord[0][0] and t2 < coord[1][0] and word != '' and not word.upper() in topic]
+        [words_in_row.append((word,l2,w2)) for coord in topic_coords if h2>coord[0][0] and t2 < coord[1][0] and word != '' and not word.upper() in topics]
 
     #get the word in row if they are in  the same column
 
@@ -622,9 +628,15 @@ def cross_search(dictionary, topic, reference):
     for match in words_in_row:
         l2 = match[1]
         w2 = match[2]
-        [words_in_inter.append([match[0], match[3], reference]) for coord in topic_coords if l2 < coord[1][1] and w2 > coord [0][1]]
-    return words_in_inter
 
+        for coord in topic_coords: 
+            if  l2 < coord[1][1] and w2 >  coord [0][1]:
+                words_in_inter.append(match[0])    
+                break
+       # [words_in_inter.append(match[0]) for coord in topic_coords if l2 < coord[1][1] and w2 > coord [0][1]]
+
+    return words_in_inter
+    
 def there_are_claims(dictionary, claims):
 
     raw_text = ' '.join(dictionary['text']).lower()

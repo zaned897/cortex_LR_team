@@ -127,3 +127,16 @@ for key, item in enumerate(topics):
 #%%
 X = ['1','2']
 X =+ ['0']
+
+#%%
+def boundingBox(dictionary, idx):
+    box = { "x1":dictionary['left'],
+            "x2":dictionary['width'] + dictionary['left'],
+            "y1":dictionary['top'],
+            "y2":dictionary['height'] + dictionary['top'],
+    }
+
+def interWordbased(dictinoary, references):
+
+    return 0 
+

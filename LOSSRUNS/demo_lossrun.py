@@ -17,13 +17,11 @@ date: Feb 2021
 
 #%%                             LOAD DEPENDENCIES
 import re
-
-from pandas.io.parsers import FixedWidthReader
 import lossrun
 
 from numpy import array
 from spacy import load
-from matplotlib.pyplot import cla, figure
+from matplotlib.pyplot import figure
 from collections import defaultdict
 from matplotlib.pyplot import imshow
 from pdf2image import convert_from_path
@@ -36,249 +34,162 @@ from configobj import ConfigObj
 from multiprocessing import cpu_count
 from time import time
 
-    
-
 print("\tLossrun Reports Info Extraction\nDemo version by Asymm Developers & and Now Insurance\ndate: Feb 2021")
 print('.'*50 + '\n'*3)
 
 
-#---------------------------------------------------------------------------------------
+
+
 #%                         LOAD DATA
-#---------------------------------------------------------------------------------------
+# hardcode file 
+FILE = '/home/zned897/Proyects/pdf_text_extractor/nowinsurance-loss-runs/docs/lossruns_feasibility/MultipleClaims3.pdf'
+MODEL_PATH = '/home/zned897/Proyects/pdf_text_extractor/nowinsurance-loss-runs/models/lossruns_models/model_LRL01'
 
-# default files
-FILE = '../data/lossruns/Challenge4.pdf' # file pdf to process
-
-MODEL_PATH = '../models/lossrun_models/lr_lt_v1' # NLP model, contains the NER PARSER AND TAGGER
-
-# time the pdf to image transform time 
+# time the pdf 2 image transform time 
 reading_time = time()
 images = convert_from_path(FILE, grayscale=True, dpi=350)
+
 print('Readig file: ...' + str(FILE[-12:] + '.Time: ' + str(time()-reading_time)) + ' secs')
 
-# try to load the multi-threads based on each cpu
+# try to load the multi-threads based on eacch cpu
 try:
     Threads= cpu_count()
 except:
     Threads = 1
 
-
-# Optical Character Recognition function
 def main_ocr(image):
-    image = array(image)  # transform PIL image to array to binarize
-    image[image <= 125] = 0
-    image[image > 126] = 255
-    image = blur(image, (2,2)) # apply a blur whit kernel 2 x 2
-    return image_to_data(image, output_type=Output.DICT) # return the result in dictionary output
+    image = array(image)
+    image[image<=125]=0
+    image[image>126] = 255
+    
+    #appy image enhanced if necessary (typically a blur works fine)
+    image = blur(image, (2,2))
+    return image_to_data(image, output_type=Output.DICT)
 
-# time the  ocr process
+#%
 ocr_time = time()
-
-# apply ocr and store the dictionaries in a list of results
+# apply ocr in dictionary format #pre-proc the text applying tokenizer and  stem if needed 
 dictionaries = []
 with ThreadPoolExecutor(max_workers=Threads-1) as executor:  # load as many threads availabe but one for general porpuses
-   ocr_results = executor.map(main_ocr,images)     # return the results of the ocr in sorted way 
-   [dictionaries.append(result) for result in ocr_results]
+   results = executor.map(main_ocr,images)     # return the process in order 
+   [dictionaries.append(result) for result in results]
 
 print('Applying OCR in ' + str(len(images)) + ' pages. Time: ' + str(time()- ocr_time) + '. Threads: ' + str(Threads-1))
 
 
-# join all pages in report is a single dictinoary
 
-# create a dictionary base
-dictionary = {'level':[],'page_num':[],'block_num':[],'par_num':[],'line_num':[],'word_num':[],'left':[],'top':[],'width':[],'height':[],'conf':[],'text':[]}
 
-# concatenate the dictinoary augmenting the size in y axis 
-for page, dix in enumerate(dictionaries):
-    dix['top'] = list(array(dix['top']) + array(images[page]).shape[0] * page)
-
-    # add the items in each page to a gral dictionary, y axis is increased by 
-    # page size
-    for item in dix: 
-        dictionary[item] = dictionary[item] + dix[item]
-
-#---------------------------------------------------------------------------------------
 #%                        SET THE CONFIGURATIONS
-#---------------------------------------------------------------------------------------
 
-
-# time the nlp analysis
-ner_time = time()
+ner_time = time() #time NLP model 
 
 try:
-    nlp('model?') # if model already loaded, don't load it again
+    nlp('model?')
 except:
     nlp = load(MODEL_PATH)
 
 print('Loading NLP Model. Time: ' + str(time()-ner_time))
 
+# load the configuration files and declare grammar rules 
 
-# load the configuration files and declare the grammar rules 
 TOPICS = ConfigObj('./config/config_topic.ino')     # load the interest points
 ENTS = ConfigObj('./config/config_ents.ino')      # load the NAME ENTITY RULES 
 #open_exp = r"\b[A-Z][A-Z]+\b"                               # reg exp rules                
-open_exp = r"[A-Za-z]\w+" # for open text typically based on mayus in the report desciption
-mon_exp = r"[^0-9\.0-9]+" # for money format (not used if NLP performs)
-alpha_exp = r"(?=[A-Za-z])\w+.*(?=[a-z])\w+." # for alpha/num (licences) (not used if NLP performs)
+open_exp = r"[A-Za-z]\w+"
+mon_exp = r"[^0-9\.0-9]+"
+alpha_exp = r"(?=[A-Za-z])\w+.*(?=[a-z])\w+."
 
+page = 0
+suspects = lossrun.search_rules(dictionaries[page], TOPICS)  # store the suspects (topic fit)
+spatial_filter_ver, tops, spatial_filter_hor, lefts = lossrun.spatial_filter(dictionaries[page], suspects, 'LOSSRUN') 
 
-
-
-
-#---------------------------------------------------------------------------------------
-#%                          APPLY NATURAL SEARCHING ALGORITHM
-#---------------------------------------------------------------------------------------
-
-#page = 0 # in order to process the hole report change the code  to process each page or merge the dictionaries
-
-# store the topics in the report that fit with synonims (can apply stem or edit distance)
-suspects = lossrun.search_rules(dictionary, TOPICS) 
-# extract the text in the same raw and column of each topic
-spatial_filter_ver, tops, spatial_filter_hor, lefts = lossrun.spatial_filter(dictionary, suspects, 'LOSSRUN') 
-
-# time the claims search 
-claims_time = time()
-
-# extract the text in report that fit the rules of policies and claims
-claims_policies = []
-img = array(images[page])
-for idx, word in enumerate(dictionary['text']):
-    if lossrun.isaclaim(word):
-        features = lossrun.get_features(dictionary, word, idx)
-       # x_1 = dictionary['top'][idx]
-       # y_1 = dictionary['left'][idx]
-       # delta = dictionary['width'][idx]
-       # features = lossrun.count_chars(word)
-        claims_policies.append(features) 
-
-
-
-#---------------------------------------------------------------------------------------
-#%                               FIND THE CLAIMS IN THE REPORTS
-#---------------------------------------------------------------------------------------
-
-#%
-# get the trained model Naive Bayes model
-data_train_nb = '../test/processed_NB_train_data.csv'
-train_percent = .8
-model = lossrun.get_NB(data_train_nb, train_percent)
-
-# extract the claims and policies in report according NB model
 claims = []
-policies = []
-extra = []
-for claim in claims_policies:
-    if model.predict(array([claim[1:]]) + 1) == 0: # 0 == policy
-        policies.append(claim[0])
-    elif model.predict(array([claim[1:]]) + 1) == 1: # 1 == claim, -1 == other sus 
-        claims.append(claim[0])
-    else:
-        extra.append(claim)
 
-print('claims', f'{claims}')
-print('policies', f'{policies}')
+img = array(images[page])
+
+claims_time = time()
+# extract the claims in the report
+claims_policies = []
+for idx, word in enumerate(dictionaries[page]['text']):
+    if lossrun.isaclaim(word):
+        x_1 = dictionaries[page]['top'][idx]
+        y_1 = dictionaries[page]['left'][idx]
+        delta = dictionaries[page]['width'][idx]
+        chars, nums, punks = lossrun.count_chars(word)
+        claims_policies.append([word, x_1, y_1, delta, chars, nums, punks]) 
+claims_policies
+claim_b =[]
+policy_b = []
+model = lossrun.get_NB()
+for claim in claims_policies:
+    if model.predict(array([claim[1:]])) == 0: # 0 == policy
+        policy_b.append(claim[0])
+    elif model.predict(array([claim[1:]])) == 1: # 1 == claim, -1 == other sus 
+        claim_b.append(claim[0])
+    else:
+        claim_b.append(claim[0])
+
+#print('claims', f'{claim_b}')
+#print('policies', f'{policy_b}')
 
 # get the sections in reports for each claim
 coords = []
-for i, claim, in enumerate(dictionary['text']):
-    if claim in claims:
-        top = dictionary['top'][i]
-        left  = dictionary['left'][i]
-        width  = dictionary['width'][i]
-        height  = dictionary['height'][i]
+for i, claim, in enumerate(dictionaries[page]['text']):
+    if claim in claim_b:
+        top = dictionaries[page]['top'][i]
+        left  = dictionaries[page]['left'][i]
+        width  = dictionaries[page]['width'][i]
+        height  = dictionaries[page]['height'][i]
         coords.append(([top, left, width, height]))
-        line(img,(left,top),(max(dictionary['left']), top),(0,0,0), 10)
-    if claim in policies:
-        top = dictionary['top'][i]
-        left  = dictionary['left'][i]
-        width  = dictionary['width'][i]
-        height  = dictionary['height'][i]
+        line(img,(left,top),(max(dictionaries[page]['left']), top),(0,0,0), 10)
+    if claim in policy_b:
+        top = dictionaries[page]['top'][i]
+        left  = dictionaries[page]['left'][i]
+        width  = dictionaries[page]['width'][i]
+        height  = dictionaries[page]['height'][i]
         #coords.append(([top, left, width, height]))
-        line(img,(left,top),(max(dictionary['left']), top),(0,0,0), 25)
+        line(img,(left,top),(max(dictionaries[page]['left']), top),(0,0,0), 25)
 
-coords.append(([max(dictionary['top']), 0, 0, 0]))
-print('Processing claims... Time: ' + str(time() - claims_time))
+coords.append(([max(dictionaries[page]['top']), 0, 0, 0]))
+print('Processing claims... Time' + str(time() - claims_time))
+# %
+#figure(figsize=(17,15))
+#imshow(img, cmap='gray')
 
-if not lossrun.there_are_claims(dictionary, claims):
-    print('THERE ARE ' + str(len(claims)) + ' CLAIMS FOUNDED')
-else:
-    print('NO CLAIMS FOUND!')
-""" uncoment this if want to plot the claims in reports
-figure(figsize=(17,15))
-imshow(img, cmap='gray')
-"""
-
-
-
-#---------------------------------------------------------------------------------------
-#%                          EXTRACT THE INFO 
-#---------------------------------------------------------------------------------------
-#%
-# time the results
+#%%                          EXTRACT THE INFO 
 info_time = time()
 stus = []
 results = []
-
-
-# extract normal cases
 for i, ENT in enumerate(suspects):
-
-    # get the text in files and the colums for each suspects
     sent_hor  = nlp(' '.join(spatial_filter_hor[i]))
     sent_ver =  nlp(' '.join(spatial_filter_ver[i]))
 
-    output_type = ENTS[ENT[0]][0]
-    # open text output expected
-    if output_type == 'OPENTXT':
+    if ENTS[ENT[0]] == []:
         aux = re.findall(open_exp, ' '.join(spatial_filter_hor[i]))
         sentence = ' '.join(aux)
         results.append([sentence, suspects[i][-1], suspects[i][0]])
     
-    
-    # Binary output expected
-    elif output_type == 'BIN':
+    elif ENT[0] == 'status':
         [results.append([word, tops[i][k],  'status']) for k, word in enumerate(spatial_filter_ver[i]) if 'CL' in word.upper()]
         [results.append([word, tops[i][k],  'status']) for k, word in enumerate(spatial_filter_ver[i]) if 'OP' in word.upper()]
+    elif '-' in ENTS[ENT[0]]:
+        pass
 
+    for ent in sent_ver.ents:
+        if ent.label_ in ENTS[ENT[0]]:
+            if ent.text in spatial_filter_ver[i]:
+                word_top = tops[i][spatial_filter_ver[i].index(ent.text)]
+                results.append([ent.text, word_top, suspects[i][0]])
+  
+    [results.append([ent.text, suspects[i][-1],  suspects[i][0]]) for ent in sent_hor.ents if ent.label_ in ENTS[ENT[0]]]
+    #[results.append([ent.text, tops[i][-1],  suspects[i][0]]) for ent in sent_ver.ents if ent.label_ in ENTS[ENT[0]]]
 
-    elif output_type == 'ENT':
-        # Entity output expected 
-        for ent in sent_ver.ents:
-            if ent.label_ in ENTS[ENT[0]]:
-                if ent.text in spatial_filter_ver[i]:
-                    word_top = tops[i][spatial_filter_ver[i].index(ent.text)]
-                    results.append([ent.text, word_top, suspects[i][0]])
-        
-        [results.append([ent.text, suspects[i][-1],  suspects[i][0]]) for ent in sent_hor.ents if ent.label_ in ENTS[ENT[0]]]
-        #[results.append([ent.text, tops[i][-1],  suspects[i][0]]) for ent in sent_ver.ents if ent.label_ in ENTS[ENT[0]]]
- 
-# extract cross cases
-
-res_cros = []
-for topic in TOPICS:
-    if '-' in TOPICS[topic][0]:
-        topic_compose = list(TOPICS[topic][0].split('-'))
-        res_cros.append(lossrun.cross_search(dictionary, topic_compose, TOPICS[topic][0]))
-        
-for res in res_cros:
-    for sub in res:
-        results.append(sub)
-
-#    for topic in TOPICS:
-#        if '-' in TOPICS[topic][0]:
-#            print(topic)
-#%
 print('Info extracted... Time:' + str(time() - info_time))
 
 
 
-#---------------------------------------------------------------------------------------
-#%                                GROUP THE INFO IN EVERY CLAIM                                   
-#---------------------------------------------------------------------------------------
-
-# time the time for gropuing the results
-grouping_time = time()
-
+#%%                                GROUP THE INFO IN EVERY CLAIM                                   
+results
 outputs = defaultdict(list) 
 
 for i, result in enumerate(results):
@@ -289,13 +200,15 @@ for i, result in enumerate(results):
         else:
             for j in range(len(coords)-1):
                 if coords[j][0] < x1 < coords[j + 1][0]:
-                    outputs[claims[j]].append(result[2] + ': ' + result[0])
-print('Results sorting. Time: ' + str(time()-grouping_time)+ 'secs')
-
-
-print('The results are:')
-for output in outputs:
-    print('.'*50)
-    print(output, outputs[output])
+                    outputs[claim_b[j]].append(result[2] + ': ' + result[0])
 
 outputs
+
+#%%
+
+coords
+#%%
+imshow(array(images[0]))
+
+#%%
+suspects

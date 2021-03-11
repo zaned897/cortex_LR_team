@@ -1,208 +1,305 @@
-"""Firt version to evaluate the NLP model and the 
-   Natural Language Search based on the info search
-   Algorithms 
+"""Code for the lossrun info extraction demo
+   temporal code that extract info in lossrun reports 
 
-   version:  0.5
-   @author: Eduardo Santos, Asymm Developers
-   date: Jan 2021
+    1.- Apply text rules for claims and policies extraction 
+        a) the word must contain numbers
+        b) muste len(word)>=7
+        c) can contain only (.), (-), and (_) as punctuation chars
+    2.- A Naive Bayes classificator is applies based on the claims, policies frecuency. space
+        distribution, and chars content
+    3.- Extract info ruled in the config files (topics and entities) 
+    4.- Group the info to the claims (in between claims)
+
+date: Feb 2021
+@author: Eduardo S. Romulo T. Raul V. Alberto de O. Asymm Developers
 """
 
-#%%                              LOAD DEPENDENCIES
 
-import spacy
-import numpy as np 
-from pdf2image import convert_from_path
-from nltk.stem.porter import *
-import nltk 
-import pytesseract as pt
-from pytesseract import Output
-import cv2
-import concurrent.futures
+#%%                             LOAD DEPENDENCIES
+import re
+
+from pandas.io.parsers import FixedWidthReader
 import lossrun
+
+from numpy import array
+from spacy import load
+from matplotlib.pyplot import cla, figure
+from collections import defaultdict
+from matplotlib.pyplot import imshow
+from pdf2image import convert_from_path
+from pytesseract import image_to_data
+from pytesseract import Output
+from cv2 import blur
+from cv2 import line
+from concurrent.futures import ThreadPoolExecutor
 from configobj import ConfigObj
-import matplotlib.pyplot as plt
-import collections
+from multiprocessing import cpu_count
+from time import time
 
-print('Loading dependnecies...')
+    
+
+print("\tLossrun Reports Info Extraction\nDemo version by Asymm Developers & and Now Insurance\ndate: Feb 2021")
+print('.'*50 + '\n'*3)
 
 
+#---------------------------------------------------------------------------------------
+#%                         LOAD DATA
+#---------------------------------------------------------------------------------------
 
+# default files
+FILE = '../data/lossruns/MultipleClaims4.pdf' # file pdf to process
 
+MODEL_PATH = '../models/lossrun_models/lr_lt_v1' # NLP model, contains the NER PARSER AND TAGGER
 
-#%%                     LOAD DATA
-#hard code file 
-FILE = '/home/zned897/Proyects/pdf_text_extractor/nowinsurance-loss-runs/docs/lossruns_feasibility/MultipleClaims3.pdf'
-MODEL_PATH = '/home/zned897/Proyects/pdf_text_extractor/NPDB_ner_model'
-print('Reading file: ...' + str(FILE[-12:]))
-
-# load the data
+# time the pdf to image transform time 
+reading_time = time()
 images = convert_from_path(FILE, grayscale=True, dpi=350)
-print('The image size is: ' + str(np.array(images[0]).shape))
+print('Readig file: ...' + str(FILE[-12:] + '.Time: ' + str(time()-reading_time)) + ' secs')
+
+# try to load the multi-threads based on each cpu
+try:
+    Threads= cpu_count()
+except:
+    Threads = 1
 
 
-#appy image enhanced if necessary (typically a blur works fine)
-
-#multi-threads
+# Optical Character Recognition function
 def main_ocr(image):
-    image = np.array(image)
-    image[image<=125]=0
-    image[image>126] = 255
-    image = cv2.blur(image, (2,2))
-    return pt.image_to_data(image, output_type=Output.DICT)
+    image = array(image)  # transform PIL image to array to binarize
+    image[image <= 125] = 0
+    image[image > 126] = 255
+    image = blur(image, (2,2)) # apply a blur whit kernel 2 x 2
+    return image_to_data(image, output_type=Output.DICT) # return the result in dictionary output
 
+# time the  ocr process
+ocr_time = time()
 
-#apply ocr in dictionary format #pre-proc the text applying tokenizer and  stem if needed #create sentences #label the ner in sentences using the big brother model #use the data to retrain the little broter model based on
-print('Applying OCR in multi threads in ' + str(len(images))+ ' pages')
+# apply ocr and store the dictionaries in a list of results
 dictionaries = []
+with ThreadPoolExecutor(max_workers=Threads-1) as executor:  # load as many threads availabe but one for general porpuses
+   ocr_results = executor.map(main_ocr,images)     # return the results of the ocr in sorted way 
+   [dictionaries.append(result) for result in ocr_results]
 
-"""with concurrent.futures.ThreadPoolExecutor(max_workers=7) as executor:
-    results = [executor.submit(main_ocr, image) for image in images]
-    for result in concurrent.futures.as_completed(results):
-        dictionaries.append(result.result())
-"""
-with concurrent.futures.ThreadPoolExecutor(max_workers=7) as executor:  # add threads as max worker when sagemaker up
-   results = executor.map(main_ocr,images)     # return the process in order 
-   [dictionaries.append(result) for result in results]
+print('Applying OCR in ' + str(len(images)) + ' pages. Time: ' + str(time()- ocr_time) + '. Threads: ' + str(Threads-1))
 
 
+# join all pages in report is a single dictinoary
 
+# create a dictionary base
+dictionary = {'level':[],'page_num':[],'block_num':[],'par_num':[],'line_num':[],'word_num':[],'left':[],'top':[],'width':[],'height':[],'conf':[],'text':[]}
 
+# concatenate the dictinoary augmenting the size in y axis 
+for page, dix in enumerate(dictionaries):
+    dix['top'] = list(array(dix['top']) + array(images[page]).shape[0] * page)
 
+    # add the items in each page to a gral dictionary, y axis is increased by 
+    # page size
+    for item in dix: 
+        dictionary[item] = dictionary[item] + dix[item]
 
+#---------------------------------------------------------------------------------------
 #%                        SET THE CONFIGURATIONS
+#---------------------------------------------------------------------------------------
 
-print('Loading the configuration files...')
+
+# time the nlp analysis
+ner_time = time()
 
 try:
-    nlp('model?')
+    nlp('model?') # if model already loaded, don't load it again
 except:
-    print('loading NPDB NER model...')
-    #print(MODEL_PATH)
-    nlp = spacy.load(MODEL_PATH)
-#nlp = spacy.load('/home/zned897/Proyects/pdf_text_extractor/external_models/NPDB_models/NPDB_ner_model')
+    nlp = load(MODEL_PATH)
+
+print('Loading NLP Model. Time: ' + str(time()-ner_time))
 
 
-page = 0
-# load the configuration files and declare grammar rules 
+# load the configuration files and declare the grammar rules 
 TOPICS = ConfigObj('./config/config_topic.ino')     # load the interest points
 ENTS = ConfigObj('./config/config_ents.ino')      # load the NAME ENTITY RULES 
-open_exp = r"\b[A-Z][A-Z]+\b"                               # reg exp rules                
-mon_exp = r"[^0-9\.0-9]+"
-alpha_exp = r"(?=[A-Za-z])\w+.*(?=[a-z])\w+."
-# 
-suspects = lossrun.search_rules(dictionaries[page], TOPICS)  # store the suspects (topic fit)
-spatial_filter_ver, tops, spatial_filter_hor, lefts = lossrun.spatial_filter(dictionaries[page], suspects, 'LOSSRUN') 
+#open_exp = r"\b[A-Z][A-Z]+\b"                               # reg exp rules                
+open_exp = r"[A-Za-z]\w+" # for open text typically based on mayus in the report desciption
+mon_exp = r"[^0-9\.0-9]+" # for money format (not used if NLP performs)
+alpha_exp = r"(?=[A-Za-z])\w+.*(?=[a-z])\w+." # for alpha/num (licences) (not used if NLP performs)
 
-#print(suspects)
-pass
-black_flag = True
+
+
+
+
+#---------------------------------------------------------------------------------------
+#%                          APPLY NATURAL SEARCHING ALGORITHM
+#---------------------------------------------------------------------------------------
+
+#page = 0 # in order to process the hole report change the code  to process each page or merge the dictionaries
+
+# store the topics in the report that fit with synonims (can apply stem or edit distance)
+suspects = lossrun.search_rules(dictionary, TOPICS) 
+# extract the text in the same raw and column of each topic
+spatial_filter_ver, tops, spatial_filter_hor, lefts = lossrun.spatial_filter(dictionary, suspects, 'LOSSRUN') 
+
+# time the claims search 
+claims_time = time()
+
+# extract the text in report that fit the rules of policies and claims
+claims_policies = []
+img = array(images[page])
+for idx, word in enumerate(dictionary['text']):
+    if lossrun.isaclaim(word):
+        features = lossrun.get_features(dictionary, word, idx)
+       # x_1 = dictionary['top'][idx]
+       # y_1 = dictionary['left'][idx]
+       # delta = dictionary['width'][idx]
+       # features = lossrun.count_chars(word)
+        claims_policies.append(features) 
+
+
+
+#---------------------------------------------------------------------------------------
+#%                               FIND THE CLAIMS IN THE REPORTS
+#---------------------------------------------------------------------------------------
+
+#%
+# get the trained model Naive Bayes model
+data_train_nb = '../test/processed_NB_train_data.csv'
+train_percent = .8
+model = lossrun.get_NB(data_train_nb, train_percent)
+
+# extract the claims and policies in report according NB model
 claims = []
+policies = []
+extra = []
+for claim in claims_policies:
+    if model.predict(array([claim[1:]]) + 1) == 0: # 0 == policy
+        policies.append(claim[0])
+    elif model.predict(array([claim[1:]]) + 1) == 1: # 1 == claim, -1 == other sus 
+        claims.append(claim[0])
+    else:
+        extra.append(claim)
 
+print('claims', f'{claims}')
+print('policies', f'{policies}')
 
-for topic in range(len(suspects)):
-
-  
-  sentence_ver  = ' '.join(spatial_filter_ver[topic])
-  sentence_hor  = ' '.join(spatial_filter_hor[topic])
-  sentence_ver = re.sub(r"\s+",' ', sentence_ver)
-  sentence_hor = re.sub(r"\s+",' ', sentence_hor)
-
-  doc_hor = nlp(sentence_hor)
-
-  if suspects[topic][0] == 'claim' and black_flag:
-       sf = []
-       [sf.append(word) for word in spatial_filter_ver[topic] if word != '']
-       [claims.append(word) for word in sf if lossrun.isaclaim(word)]
-       black_flag = False
-
-"""
-  for ent in doc_hor.ents:
-    if suspects[topic][0] == 'insured':
-        if ent.label_ in Ents['insured']:
-            print(str(suspects[topic][0]) + ': ' + str(ent.text) + ' ' + str(ent.label_))
-          #  break
-    if suspects[topic][0] == 'as_of':
-       if ent.label_ in Ents['as_of']:
-            print(str(suspects[topic][0]) + ': ' + str(ent.text) + ' ' + str(ent.label_))
-           # break
-"""
-img = np.array(images[page])
+# get the sections in reports for each claim
 coords = []
-#[print(word) for word in dictionaries[page]['text'] if word in claims]
-for i, claim, in enumerate(dictionaries[page]['text']):
+for i, claim, in enumerate(dictionary['text']):
     if claim in claims:
-        top = dictionaries[page]['top'][i]
-        left  = dictionaries[page]['left'][i]
-        width  = dictionaries[page]['width'][i]
-        height  = dictionaries[page]['height'][i]
+        top = dictionary['top'][i]
+        left  = dictionary['left'][i]
+        width  = dictionary['width'][i]
+        height  = dictionary['height'][i]
         coords.append(([top, left, width, height]))
-        cv2.line(img,(left,top),(max(dictionaries[page]['left']), top),(0,0,0), 10)
+        line(img,(left,top),(max(dictionary['left']), top),(0,0,0), 10)
+    if claim in policies:
+        top = dictionary['top'][i]
+        left  = dictionary['left'][i]
+        width  = dictionary['width'][i]
+        height  = dictionary['height'][i]
+        #coords.append(([top, left, width, height]))
+        line(img,(left,top),(max(dictionary['left']), top),(0,0,0), 25)
 
-coords.append(([max(dictionaries[page]['top']), 0, 0, 0]))
-claims
-# %%
-plt.figure(figsize=(17,15))
-plt.imshow(img, cmap='gray')
-#%%                          TESTING CELL IGNORE IT 
+coords.append(([max(dictionary['top']), 0, 0, 0]))
+print('Processing claims... Time: ' + str(time() - claims_time))
 
+if not lossrun.there_are_claims(dictionary, claims):
+    print('THERE ARE ' + str(len(claims)) + ' CLAIMS FOUNDED')
+else:
+    print('NO CLAIMS FOUND!')
+""" uncoment this if want to plot the claims in reports
+figure(figsize=(17,15))
+imshow(img, cmap='gray')
+"""
+
+
+
+#---------------------------------------------------------------------------------------
+#%                          EXTRACT THE INFO 
+#---------------------------------------------------------------------------------------
+#%
+# time the results
+info_time = time()
 stus = []
 results = []
+
+
+# extract normal cases
 for i, ENT in enumerate(suspects):
-    #print(i, topic[0])
-    #print('........')
+
+    # get the text in files and the colums for each suspects
     sent_hor  = nlp(' '.join(spatial_filter_hor[i]))
     sent_ver =  nlp(' '.join(spatial_filter_ver[i]))
 
-    if ENTS[ENT[0]] == []:
+    output_type = ENTS[ENT[0]][0]
+    # open text output expected
+    if output_type == 'OPENTXT':
         aux = re.findall(open_exp, ' '.join(spatial_filter_hor[i]))
         sentence = ' '.join(aux)
-        #print(ENT[0] + ':' + str(sentence))
-        results.append([sentence, suspects[i][-1]])
+        results.append([sentence, suspects[i][-1], suspects[i][0]])
     
-    elif ENT[0] == 'status':
-        [results.append([word, tops[i][k]]) for k, word in enumerate(spatial_filter_ver[i]) if 'CL' in word.upper()]
-        [results.append([word, tops[i][k]]) for k, word in enumerate(spatial_filter_ver[i]) if 'OP' in word.upper()]
-        #print(stus)
-        #results.append([stus, suspects[i][-1]])
-    elif '-' in ENTS[ENT[0]]:
-        pass
-    [results.append([ent.text, suspects[i][-1]]) for ent in sent_hor.ents if ent.label_ in ENTS[ENT[0]]]
-    [results.append([ent.text, suspects[i][-1]]) for ent in sent_ver.ents if ent.label_ in ENTS[ENT[0]]]
+    
+    # Binary output expected
+    elif output_type == 'BIN':
+        [results.append([word, tops[i][k],  'status']) for k, word in enumerate(spatial_filter_ver[i]) if 'CL' in word.upper()]
+        [results.append([word, tops[i][k],  'status']) for k, word in enumerate(spatial_filter_ver[i]) if 'OP' in word.upper()]
 
-#    for ent in sent_ver.ents:
-#        if ent.label_ in ENTS[ENT[0]]:
-#            print(ent.text, ent.label_)
 
-results
-outputs = collections.defaultdict(list) 
-#%%
+    elif output_type == 'ENT':
+        # Entity output expected 
+        for ent in sent_ver.ents:
+            if ent.label_ in ENTS[ENT[0]]:
+                if ent.text in spatial_filter_ver[i]:
+                    word_top = tops[i][spatial_filter_ver[i].index(ent.text)]
+                    results.append([ent.text, word_top, suspects[i][0]])
+        
+        [results.append([ent.text, suspects[i][-1],  suspects[i][0]]) for ent in sent_hor.ents if ent.label_ in ENTS[ENT[0]]]
+        #[results.append([ent.text, tops[i][-1],  suspects[i][0]]) for ent in sent_ver.ents if ent.label_ in ENTS[ENT[0]]]
+ 
+# extract cross cases
+
+res_cros = []
+for topic in TOPICS:
+    if '-' in TOPICS[topic][0]:
+        topic_compose = list(TOPICS[topic][0].split('-'))
+        res_cros.append(lossrun.interWordBased(dictionary, topic_compose, topic))
+        
+for res in res_cros:
+    for sub in res:
+        results.append(sub)
+
+#    for topic in TOPICS:
+#        if '-' in TOPICS[topic][0]:
+#            print(topic)
+#%
+print('Info extracted... Time:' + str(time() - info_time))
+
+
+
+#---------------------------------------------------------------------------------------
+#%                                GROUP THE INFO IN EVERY CLAIM                                   
+#---------------------------------------------------------------------------------------
+
+# time the time for gropuing the results
+grouping_time = time()
+
+outputs = defaultdict(list) 
+
 for i, result in enumerate(results):
-    x1 = result[1] + coords[0][1]//2
-    if x1 <= coords[0][0]:
-        print(result[0], 'Cover info')
-        outputs['cover'].append(result[0])
-       
-    for j in range(len(coords)-1):
-        if coords[j][0] < x1 < coords[j + 1][0]:
-            print(result[0], claims[j])
-            outputs[claims[j]].append(result[0])
+    if result[0] != '':
+        x1 = result[1] + coords[0][1]//2
+        if x1 < coords[0][0]:
+            outputs['cover'].append(result[2] + ': ' + result[0])
+        else:
+            for j in range(len(coords)-1):
+                if coords[j][0] < x1 < coords[j + 1][0]:
+                    outputs[claims[j]].append(result[2] + ': ' + result[0])
+print('Results sorting. Time: ' + str(time()-grouping_time)+ 'secs')
 
-#%%         TESET CELL IGNORE IT 
-""""
 
-import copy
-import string
+print('The results are:')
+for output in outputs:
+    print('.'*50)
+    print(output, outputs[output])
 
-#claim_test = '3:37:26'
-claim_test = 'sadkhsa-akshdk'
-punkt = string.punctuation.replace('-','').replace('.','')
+outputs
 
-len(claim_test) >= 7 and any(char.isdigit() for char in claim_test) and not any(char in punkt for char in claim_test)
-"""
-#%%  EXTRACT THE CLAIMS AND POILICY NUMBERS
-
-import lossrun
-import numpy as np
-gnb = lossrun.get_NB()
-
-gnb.predict(np.array([[396,220,198,6,7,3,0,0]]))
+#EOC
+#%%
+results

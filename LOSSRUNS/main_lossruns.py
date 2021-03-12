@@ -17,10 +17,11 @@ date: Feb 2021
 
 #%%                             LOAD DEPENDENCIES
 import re
+import lossrun
+import cv2
+import numpy as np
 
 from pandas.io.parsers import FixedWidthReader
-import lossrun
-
 from numpy import array
 from spacy import load
 from matplotlib.pyplot import cla, figure
@@ -47,13 +48,13 @@ print('.'*50 + '\n'*3)
 #---------------------------------------------------------------------------------------
 
 # default files
-FILE = '../data/lossruns/MultipleClaims4.pdf' # file pdf to process
+FILE = '../data/lossruns/GH Lloyds Loss Runs.pdf' # file pdf to process
 
-MODEL_PATH = '../models/lossrun_models/lr_lt_v1' # NLP model, contains the NER PARSER AND TAGGER
+MODEL_PATH = '../models/lossrun_models/latest'# NLP model, contains the NER PARSER AND TAGGER
 
 # time the pdf to image transform time 
 reading_time = time()
-images = convert_from_path(FILE, grayscale=True, dpi=350)
+images = convert_from_path(FILE, grayscale=True, dpi=500)
 print('Readig file: ...' + str(FILE[-12:] + '.Time: ' + str(time()-reading_time)) + ' secs')
 
 # try to load the multi-threads based on each cpu
@@ -66,9 +67,11 @@ except:
 # Optical Character Recognition function
 def main_ocr(image):
     image = array(image)  # transform PIL image to array to binarize
+    kernel =np.ones((4,4), np.uint8)
+    image = cv2.erode(image, kernel, iterations = 1)
     image[image <= 125] = 0
     image[image > 126] = 255
-    image = blur(image, (2,2)) # apply a blur whit kernel 2 x 2
+    image = blur(image, (1,1)) # apply a blur whit kernel 2 x 2
     return image_to_data(image, output_type=Output.DICT) # return the result in dictionary output
 
 # time the  ocr process
@@ -130,7 +133,7 @@ alpha_exp = r"(?=[A-Za-z])\w+.*(?=[a-z])\w+." # for alpha/num (licences) (not us
 #---------------------------------------------------------------------------------------
 
 #page = 0 # in order to process the hole report change the code  to process each page or merge the dictionaries
-
+#%
 # store the topics in the report that fit with synonims (can apply stem or edit distance)
 suspects = lossrun.search_rules(dictionary, TOPICS) 
 # extract the text in the same raw and column of each topic
@@ -138,7 +141,7 @@ spatial_filter_ver, tops, spatial_filter_hor, lefts = lossrun.spatial_filter(dic
 
 # time the claims search 
 claims_time = time()
-
+#%
 # extract the text in report that fit the rules of policies and claims
 claims_policies = []
 img = array(images[page])
@@ -174,7 +177,7 @@ for claim in claims_policies:
         claims.append(claim[0])
     else:
         extra.append(claim)
-
+#claims.append('593.079')
 print('claims', f'{claims}')
 print('policies', f'{policies}')
 
@@ -218,15 +221,19 @@ imshow(img, cmap='gray')
 info_time = time()
 stus = []
 results = []
+#%
 
-
+#%
 # extract normal cases
 for i, ENT in enumerate(suspects):
 
     # get the text in files and the colums for each suspects
     sent_hor  = nlp(' '.join(spatial_filter_hor[i]))
     sent_ver =  nlp(' '.join(spatial_filter_ver[i]))
+    
 
+    if i==7:
+        print('here')
     output_type = ENTS[ENT[0]][0]
     # open text output expected
     if output_type == 'OPENTXT':
@@ -245,9 +252,11 @@ for i, ENT in enumerate(suspects):
         # Entity output expected 
         for ent in sent_ver.ents:
             if ent.label_ in ENTS[ENT[0]]:
-                if ent.text in spatial_filter_ver[i]:
-                    word_top = tops[i][spatial_filter_ver[i].index(ent.text)]
-                    results.append([ent.text, word_top, suspects[i][0]])
+                ent_elements = list(ent.text.split(' '))
+                if any (word in ent_elements for word in spatial_filter_ver[i]):
+                    if ent_elements[0]!='':
+                        word_top = tops[i][spatial_filter_ver[i].index(ent_elements[0])]
+                        results.append([ent.text, word_top, suspects[i][0]])
         
         [results.append([ent.text, suspects[i][-1],  suspects[i][0]]) for ent in sent_hor.ents if ent.label_ in ENTS[ENT[0]]]
         #[results.append([ent.text, tops[i][-1],  suspects[i][0]]) for ent in sent_ver.ents if ent.label_ in ENTS[ENT[0]]]
@@ -302,4 +311,16 @@ outputs
 
 #EOC
 #%%
-results
+for word in dictionary['text']:
+    if lossrun.isaclaim(word):
+        print(word)
+#
+' '.join(dictionary['text']) 
+
+#%%
+x = nlp(' '.join(spatial_filter_ver[-1]))
+for ent in x.ents:
+    print(ent.label_)
+    
+#%%
+outputs['i']

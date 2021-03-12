@@ -90,7 +90,7 @@ TRAIN_DATA = TRAIN_DATA[:][:-1]
 start_time = time.time()
 # Optimal values: n_iter = 10, drop = 0.01
 
-n_iter = 150
+n_iter = 100
 ## Load model
 
 #load the model
@@ -124,7 +124,7 @@ with nlp.disable_pipes(*other_pipes):  # only train NER
             nlp.update(
                 [text],  
                 [annotations],  
-                drop=0.3,  
+                drop=0.01,  
                 sgd=optimizer,
                 losses=losses)
         #print(losses)

@@ -1,3 +1,4 @@
+
 FROM ubuntu:20.04
 
 #UPDATE AND UPGRADE
@@ -12,19 +13,26 @@ RUN apt install python3 python3-pip -y
 
 COPY /api /home/app/api
 
-# copy the main script and libraries
+# copy the main scrips and configuration files
 COPY /NPDB/main_npdb_cover_beta.py /home/app/NPDB/
 COPY /NPDB/lossrun.py /home/app/NPDB/
-# copy resources (model, and data)
 COPY /NPDB/config /home/app/NPDB/config/
-COPY /NPDB/data/ /home/app/NPDB/data/
 
-# copy the natural language model and the requirements
-COPY /models/npdb/latest/ /home/app/models/npdb/latest/
+COPY /LOSSRUNS/main_lossruns.py /home/app/LOSSRUNS/
+COPY /LOSSRUNS/lossrun.py /home/app/LOSSRUNS/
+COPY /LOSSRUNS/config /home/app/LOSSRUNS/config/
+COPY /data/ /home/app/data/
+
+# copy the natural language models and the requirements
+COPY /models /home/app/models
 COPY /src/requirements.txt /home/app/src/
 
-# copy tests
+# copy unit test
 COPY /test/ /home/app/test/
+COPY /testLR/ /home/app/testLR/
+
+# results folder for all tested files
+COPY /results/ /home/app/results/
 
 # INSTALL PYTHON PACKAGES
 RUN pip3 install -r /home/app/src/requirements.txt

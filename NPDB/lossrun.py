@@ -441,11 +441,11 @@ def is_report(image, txt):
 
     content =' '.join(txt['text'])
     if ('FROM:'in content.upper()) and ('SENT:'in content.upper()) and ('@' in content.upper()):
-        return ('EMAIL',ConfigObj('/home/app/NPDB/config/config_email_topics.ino'),ConfigObj('/home/app/NPDB/config/config_email_entities.ino'))
+        return ('EMAIL',ConfigObj('NPDB/config/config_email_topics.ino'),ConfigObj('NPDB/config/config_email_entities.ino'))
     elif 'NPDB' in content.upper():
-        return ('NPDB', ConfigObj('/home/app/NPDB/config/config_npdb_topics.ino'),ConfigObj('/home/app/NPDB/config/config_npdb_entities.ino'))
+        return ('NPDB', ConfigObj('NPDB/config/config_npdb_topics.ino'),ConfigObj('NPDB/config/config_npdb_entities.ino'))
     elif ('STATUS' in content.upper()) or ('STATUS' in content.upper()) or ('STUS' in content.upper()):
-        return ('LOSSRUN', ConfigObj('/home/app/NPDB/config/config_lossrun_topics.ino'),ConfigObj('/home/app/NPDB/config/config_lossrun_entities.ino'))
+        return ('LOSSRUN', ConfigObj('NPDB/config/config_lossrun_topics.ino'),ConfigObj('NPDB/config/config_lossrun_entities.ino'))
     else:
         return 'any'
 
@@ -461,13 +461,12 @@ def non_info_filter(pdf_path, resize_factor = (200,200), score = 0.6):
     # load pdf to evaluate
     images = convert_from_path(pdf_path, grayscale=True, size=resize_factor)
     # load template for compare non info pages
-    image_base = imread('/home/app/NPDB/config/image_base.png', IMREAD_GRAYSCALE)
+    image_base = imread('NPDB/config/image_base.png', IMREAD_GRAYSCALE)
     image_base = resize(image_base,resize_factor)
     # store the result 
     non_focuses = []
     [non_focuses.append(True) if structural_similarity(image_base,resize(np.array(image),resize_factor)) < score else non_focuses.append(False) for image in images]
     return non_focuses
-
 
 
 def check_null(dictionary):

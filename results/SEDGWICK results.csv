@@ -1,0 +1,6 @@
+,claim,status,insured,claimant,as_of,closed_date,exp_date,inc_date,report_date,state,total_paid,exps_paid,exps_reserve,exps_incurred,indemnity_paid,indemnity_reserve,indemnity_incurred,total_incurred,total_reserve,incident_desc
+0,cover,,, TPA Notice Facility Type Age Incident, 02/18/2016,,,,,,,,,,,,,,,
+1,2011297423, Closed, Flower Villa Inc,, 02/18/2016, 08/05/2011, 09/05/2011, 08/01/2011, 08/01/2011, California, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, DEATH AFTER MOVED TO NEW FACILITY
+2,2011306561, Closed, Torrance Care Center West Inc,, 02/18/2016, 12/06/2011, 06/08/2012, 11/24/2011, 11/24/2011, California, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, BURNED FOOT FROM UNKNOWN CAUSE REFUSED TREATMENT ENDED UP IN THE HOSPITAL WITH CELLULITIS
+3,2011304854, Closed, Torrance Care Center West Inc,, 02/18/2016, 11/08/2011, 02/02/2015, 10/18/2010, 10/18/2011, California," 1,055,820.28"," 190,819.28", 0.00," 190,819.28"," 865,001.00", 0.00," 865,001.00"," 1,055,820.28", 0.00, ALLEGED EMPLOYEE BATTERY ON RESIDENT RESULTING IN CRIMINAL CHARGES AGAINST THE CNA
+4,2012310099, Closed, Long Beach Care Center Inc,, 02/18/2016, 01/20/2012, 07/19/2012, 01/13/2012, 01/18/2012, California, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, RESIDENT WITH HISTORY OF MS PSYCHOSIS FOUND ON FACILITY GROUNDS UNRESPONSIVE

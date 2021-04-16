@@ -367,7 +367,7 @@ def map_words(txt_dict):
 
 def search_rules(dictionary, rules):
     # most be modified
-    radius = 200
+    radius = 300
 
     # map words possitions in text list
     _, poss = map_words(dictionary)
@@ -476,7 +476,7 @@ def non_info_filter(pdf_path, resize_factor = (200,200), score = 0.6):
     # load pdf to evaluate
     images = convert_from_path(pdf_path, grayscale=True, size=resize_factor)
     # load template for compare non info pages
-    image_base = imread('../NPDB/config/image_base.png', IMREAD_GRAYSCALE)
+    image_base = imread('NPDB/config/image_base.png', IMREAD_GRAYSCALE)
     image_base = resize(image_base,resize_factor)
     # store the result 
     non_focuses = []
@@ -484,7 +484,7 @@ def non_info_filter(pdf_path, resize_factor = (200,200), score = 0.6):
     return non_focuses
 
 
-def get_NB(train_data = '../test/test_data_NB_class_claim_policy.csv', train_percent = 0.9):
+def get_NB(train_data = 'test/test_data_NB_class_claim_policy.csv', train_percent = 0.9):
     """Train a Naive Bayes model to classify claims and policy number reports
     INPUT: (str) train_data, path to csv train data, column 0 ref, 1:-1 features, -1 classes
     RETURN: (NB model)
@@ -527,12 +527,12 @@ def isaclaim(claim='', length = 7):
     """
 
     # load elemets of reference, special chars and dates, excluded
-    punkt = punctuation.replace('.','').replace('-','').replace('_','') # dot and hyphen allowed in claim numbers
+    punkt = punctuation.replace('.','').replace('-','') # dot and hyphen allowed in claim numbers
     months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
     
     # properties of claims
     match_length = len(claim)>=length
-    match_digits = any(char.isdigit() for char in claim)
+    match_digits =  any(char.isdigit() for char in claim)
     match_special_chars = not any(char in punkt for char in claim)
     match_no_dates = not any(month in claim.lower() for month in months)
     match_one_dote = not '.' in claim.replace('.','',1)
@@ -638,7 +638,9 @@ def cross_search(dictionary, topics):
     return words_in_inter
     
 def there_are_claims(dictionary, claims):
-
+    """
+    Search if there are claims in the report based on general rules
+    """
     raw_text = ' '.join(dictionary['text']).lower()
 
 
@@ -651,20 +653,161 @@ def there_are_claims(dictionary, claims):
     return rule0 and (rule1 or rule2 or rule3)
 
 
-def validation_0(dictionary):
+
+def searchTopics(dictionary, TOPICS):
+    results = []
+    for topic in TOPICS:
+        for raw_topic in TOPICS[topic]:
+        
+            topics = list(raw_topic.split(' '))
+            
+            for idx, word in enumerate(dictionary['text']):
+                if word.upper() == topics[0]:
+                    ref_coord = {"x1": dictionary['top'][idx],
+                                "y1": dictionary['left'][idx]
+                                }
+                    near_word = []
+                    for idxw, wordw in enumerate(dictionary['text']):
+                        word_coord = {"x1": dictionary['top'][idxw],
+                                    "y1":dictionary['left'][idxw]
+                                    }
+                        dist = distance(ref_coord['x1'],word_coord['x1'],ref_coord['y1'], word_coord['y1'])
+                        if dist<250 and word_coord['x1'] >= ref_coord['x1'] and word_coord['y1'] + 100 >= ref_coord['y1']:
+                            near_word.append(wordw.upper())
+                    
+                    if all(topic in near_word for topic in topics):
+                        results  += [(topic, raw_topic, idx, ref_coord['y1'], ref_coord['x1'])]
+
+    return results
+
+
+def distance( x1, x2, y1, y2):
     """
-    Validate sentences assosoated to NO CLAIMS
+    Calculate  the distance between a couple of coords
     """
-    # add intersection formats i.e.,    claim
-    #                              total: 0
+    distance = ((x1-x2)**2 + (y1-y2)**2)**(1/2)
+    return distance
 
-
-    return there_are_claims()
-
-
-def validations_1(dictionary, train_data, percent_train = .7): 
+def searchSameRowCol(dictionary, indices):
     """
-    Validate if len (claims >= 7), if not len claims == 5
+    Search the elements in the same row or column of idx-esim word in the dictionary
+
+        Input:  (dict) Dictionary. The OCR ouput in dictionary format (Ooput.DICTIONARY)
+                (list) list of the index for every interest word 
+    """
+
+    # results of candidates in same row and column and the coord
+    all_ver_c, all_hor_c, all_top_c, all_left_c = [],[],[],[]
+
+    # extract for each suspect the elements in column
+    for index in indices:
+        ver_c, hor_c, top_c, left_c = [],[],[],[]
+        # get the coords for each suspect
+        suspect_coord = boundingBox(dictionary, index)
+
+        # check same column for each elem
+        for idx, word in enumerate(dictionary['text']):
+
+            if word != '' and word != ' ':
+
+                # word coords
+                word_coord = boundingBox(dictionary, idx)
+
+                # same row or columns
+                match_col = suspect_coord['x1'] < word_coord['x2'] and suspect_coord['x2'] + 50 > word_coord['x1'] and suspect_coord['y1'] < word_coord['y1']
+                match_row = suspect_coord['y1'] < word_coord['y2'] and suspect_coord['y2'] > word_coord['y1'] and suspect_coord['x1'] < word_coord['x1']              
+                # check is same row
+                if match_row:
+                    hor_c.append(word)
+                    left_c.append(word_coord['x1'])
+                
+                # check if same column
+                if match_col:
+                    ver_c.append(word)
+                    top_c.append(word_coord['y1'])
+
+        all_ver_c += [ver_c]
+        all_hor_c += [hor_c]
+        all_top_c += [top_c]
+        all_left_c += [left_c]
+
+    return all_ver_c, all_top_c, all_hor_c, all_left_c
+
+def sameColumnUpper():
+    """Search for the topic in the same column of a bounding box
+    """
+
+    return 0 
+    
+
+def getClaimsPolicies(dictionary, train_data = 'test/processed_NB_train_data.csv', train_percent = 0.3, length = 7):
+
+    claims_policies = []
+
+    for idx, word in enumerate(dictionary['text']):
+        if isaclaim(word, length):
+            features = get_features(dictionary, word, idx)
+        # x_1 = dictionary['top'][idx]
+        # y_1 = dictionary['left'][idx]
+        # delta = dictionary['width'][idx]
+        # features = lossrun.count_chars(word)
+            claims_policies.append(features) 
+
+    # get the trained model Naive Bayes model
+    data_train_nb = train_data
+    model = get_NB(data_train_nb, train_percent)
+
+    # extract the claims and policies in report according NB model
+    claims = []
+    policies = []
+    extras = []
+    for claim in claims_policies:
+        if model.predict(np.array([claim[1:]]) + 1) == 0: # 0 == policy
+            policies.append(claim[0])
+        elif model.predict(np.array([claim[1:]]) + 1) == 1: # 1 == claim, -1 == other sus 
+            claims.append(claim[0])
+        else:
+            claims.append(claim[0])
+
+    claims = list(dict.fromkeys(validateSameRowCol(dictionary, claims + policies, ['CLAIM', 'CLAIM/INCIDENT'])))
+    policies = list(dict.fromkeys(validateSameRowCol(dictionary,policies + claims, [' POLICY', 'POLICY:'])))
+
+    return claims, policies
+
+def validateNoClaims(dictionary, claims):
+    """
+    Validation 1. Validate sentences assosoated to NO CLAIMS
+    
+        Input:  (dict) Dictionary. The OCR ouput in dictionary format (Ooput.DICTIONARY)
+                (list) claims. List of the suspects founded in NB classifier
+        Return: (bool) True if no the match words, "no claims, claims no found, etc"
+    """
+
+    # function in prototype version, needs to be improved by adding more rules for 
+    # no claims
+    # !add intersection formats i.e.,    claim
+    #                               total: 0
+
+    # extract the raw text in the dictionary as a string
+    raw_text = ' '.join(dictionary['text']).lower()
+
+    rule0 = not len(claims) != 0    # no claims founded by NB classifier
+    rule1 = not 'grand total: 0' in raw_text    # specific grand total as zero
+    rule2 = not 'no claims found' in raw_text   # no claims founded conditonal with rule 0
+    rule3 = not 'there are no claims' in raw_text   #
+
+    return rule0 and (rule1 or rule2 or rule3)
+
+
+
+def validate5LenClaims(dictionary, train_data, percent_train = .7): 
+    """
+    Validation 2. Validate if len (claims >= 7), if not len claims == 5
+    
+        Input:  (dict) dictionary. The OCR ouput in dictionary format (Ooput.DICTIONARY)
+                (str) train_data. Path to the csv train data file
+                (float) percent_train. percent of the data to be training
+        Return: (list) claims with len 5
     """
 
     # Get the NB model for predict claim/policy
@@ -676,7 +819,7 @@ def validations_1(dictionary, train_data, percent_train = .7):
     # extract the claims/policies suspects and their features
     for idx, word in enumerate(dictionary['text']):
         
-        if isaclaim(word):
+        if isaclaim(word, length=6):
             features = get_features(dictionary, word, idx)
             claims_policies.append(features) 
 
@@ -689,17 +832,95 @@ def validations_1(dictionary, train_data, percent_train = .7):
         else:
             extras.append(suspect)
 
-    return len(claims) == 0
+    return claims
 
 
-def validation_2 (dictionary, suspect, syn_list):
+def validateSameRowCol (dictionary, suspects, syn_list):
     """
-    Policies suspects in the same row policy num, pol nbr, etc.
+    !important (an alternative for this validation, the result from the spatial filter can be applyed)
+    Validation 3. Policies suspects in the same row policy num, pol nbr, etc.
+    
+        Input:  (dict) dictionary. The OCR ouput in dictionary format (Ooput.DICTIONARY)
+                (sting) suspect. The word to looklkkk
+        Retrun: (list) elements in the same row or column of the target topic
     """
-    elements_in_row = same_row(dictionary, suspect)
 
-    return  any(syn.lower() in elements_in_row for syn in syn_list)
-            
+    validate_suspects = []
+    # for every word in the dictinoary 
+    for idx_r, word_r in enumerate(dictionary['text']):
+
+        # check if that word are in the suspects list 
+        if word_r.upper() in suspects:
+            # if the word is the suspects list get the coords
+            suspect_coord = boundingBox(dictionary, idx_r)
+
+        # and check is there is a synm to search in the same row/col
+            for idx, word in enumerate(dictionary['text']):
+
+                if word != '' and word != ' ':
+
+                # word coords
+                    word_coord = boundingBox(dictionary, idx)
+
+                # same row or columns
+                    match_col = suspect_coord['x1'] < word_coord['x2'] and suspect_coord['x2'] + 50 > word_coord['x1'] and suspect_coord['y1'] > word_coord['y1']
+                    match_row = suspect_coord['y1'] < word_coord['y2'] and suspect_coord['y2'] > word_coord['y1'] and suspect_coord['x1'] > word_coord['x1']              
+
+
+                    if (match_col or match_row) and word.upper() in syn_list:
+
+                        validate_suspects.append(word_r)
+    # store the results for each topic
+  
+
+    return validate_suspects
+
+
+
+def validateNewFormats(train_data, claims_policies):
+
+    """ IMPORTANT: if the new train data is less then 4 examples, is faster 
+        add it manually.
+
+
+    Validation 4. Add new examples with non seeing format in data training
+     
+        Input: (str) train_data. Path to the csv train data
+               (list) claims_policies. List of the new format not seeing in the data training
+        Return: (NB model) Retrain a NB model for the non seeing model
+    """
+    pass
+    return 0 
+
+def validateDuplicates(dictinoary, claims_policies):
+    """
+    Validation 5. Remove duplicate claims or policies keeping ones with the highest top value
+
+        Input:  (dict) dictionary. The OCR ouput in dictionary format (Ooput.DICTIONARY)
+                (list) claims_policies. List of the elements repeated
+        Return: unique value list and the index for the lower top for the repeated elements
+    """
+
+    # get the repeated elemts in list 
+    repeated_elements = list(set([element for element in claims_policies if claims_policies.count(elemt) > 1]))
+
+
+    repeated_tops =[]
+    for repeat in repeated_elements:
+        for idx, word in enumerate(dictionary['text']):
+            if word.upper() == repeat.upper():
+                repeated_tops += [(repeat, dictionary['top'][idx])]
+    #same_element = [] 
+    #    if WindowsError(kkkk)
+    
+    return repeated_tops
+
+def validateSplitPolicies(dictionary, polices, synm):
+    """
+    Complete a policies separated by a space in 
+    """
+    pass
+    return 0
 
 
 def print_help():
@@ -709,7 +930,7 @@ def print_help():
     usage:
     --file-path:    (str) path to pdf file 
     --model-path:   (str) path to nlp model ner folder 
-    --data-base:    (bool) insert to database?
+    --output-file:  (bool) insert to .csv file?
 
     
     version:        0.9 
@@ -717,4 +938,3 @@ def print_help():
     license:        .
     """
     return help_message
-

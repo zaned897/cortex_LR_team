@@ -6,7 +6,7 @@ from test.utils_test import Utils
 from test.custom_assertions import CustomAssertions
 
 class MainNPDBCoverBetaTest(unittest.TestCase, Utils, CustomAssertions):
-    
+
     def __init__(self, *args, **kwargs):
         super(MainNPDBCoverBetaTest, self).__init__(*args, **kwargs)
         self.expected_data_path = "/home/app/test/resources/expected_data/"

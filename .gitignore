@@ -1,6 +1,6 @@
 # Internal files
-
 models/
+docs/results_csv_LR
 NPDB/data/
 
 # Byte-compiled / optimized / DLL files

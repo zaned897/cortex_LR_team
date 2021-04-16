@@ -1,4 +1,4 @@
-# %%                           LOAD DEPENDENCIES
+#%%
 from pdf2image import convert_from_path # utils from poppler, .pdf -> .png
 import pytesseract as pt                # ocr tool from google eng dict enable 
 from pytesseract import Output          # ocr process stored in dictionary format
@@ -15,17 +15,21 @@ from skimage.transform import rescale   # image proccessing
 from skimage.metrics import structural_similarity
 from skimage.filters import unsharp_mask
 from cv2 import blur, imread,  IMREAD_GRAYSCALE     # computer vision
-import lossrun                          # local tools for loss run reports
+from os import getcwd
+import lossrun  
+from pandas import DataFrame                        # local tools for loss run reports
+
+nlp = spacy.load("models/npdb/latest")
+def run(PATH='data/NPDB/NPDBQA1.pdf'):
+    sys.path.append(getcwd)
+  
 
 
-
-def run(PATH='/home/app/NPDB/data/NPDBQA6.pdf'):
-    #%%                         DEFINE THE OPTIONS OF THE CODE
+    """
     args_list = sys.argv[1:]    # options: file to process, path to nlp model and database available?
     args_flags = 'hf:m:d:'      # short options
     args_long = ['help', 'file-path=','model-path=', 'data-base-insert='] # long format for options
     argv = sys.argv[1:]         # ignore the first arg since is the script.py opt
-    data_results = []
 
     # catch the rigth options
     try:
@@ -34,11 +38,13 @@ def run(PATH='/home/app/NPDB/data/NPDBQA6.pdf'):
         print(str(err) + ', system exit...')
         sys.exit(2)            # there are an error with the input then exit
 
-
+    """
     # Set the default nlp model and database insertion 
-    MODEL_PATH = '/home/app/models/npdb/latest/'
+    MODEL_PATH = 'models/npdb/latest/'
     db = False
 
+    data_results = []
+    """
     # assign the inputs to the script variables
     for current_argument, current_value in argument:
         if current_argument in ['-h','--help']:
@@ -52,23 +58,9 @@ def run(PATH='/home/app/NPDB/data/NPDBQA6.pdf'):
         elif current_argument in ['-d', '--data-base-insert']:
             db = [False, True][current_value.lower()[0] == 't' or current_value.lower()[0]=='y']
             print('Database insetion: ', db)
-
-
-       
-
-
-    #%%                                  FOR THE DEBUGGING UNCOMMENT THE FOLLOW BLOCK
-    # manual input 
-    """
-    PATH = './data/NPDBQA23.pdf'
-    MODEL_PATH = '/home/zned897/Proyects/pdf_text_extractor/NPDB_ner_model'
-    db = False
     """
 
-
-
-
-    #%%                                  DATA READ AND PROCESS
+    #                                 DATA READ AND PROCESS
 
     print('Reading the reports and remove non info pages from report %s...' % (PATH))
     # time it
@@ -104,7 +96,7 @@ def run(PATH='/home/app/NPDB/data/NPDBQA6.pdf'):
 
 
 
-    #%%                         PROCESS COVER PAGES INFO
+    #                         PROCESS COVER PAGES INFO
     # search if the final sentense of cover pages are present and npi, fein, dea numbers found
     END_OF_COVER_PAGES = ['NO REPORTS FOUND','UNABRIDGED REPORT(S) FOLLOW']
     NPI_FOUND = False
@@ -162,7 +154,7 @@ def run(PATH='/home/app/NPDB/data/NPDBQA6.pdf'):
 
 
 
-    #%%                             FILTER PAGES WITH NON RELEVANT INFO                           
+    #                            FILTER PAGES WITH NON RELEVANT INFO                           
     # continue whit the rest of report
     filter_time = time.time() # time it 
     list_of_relevant = lossrun.non_info_filter(PATH, score = 0.56)
@@ -181,7 +173,7 @@ def run(PATH='/home/app/NPDB/data/NPDBQA6.pdf'):
 
 
 
-    #%%                              OCR AND CLAIMS EXTRACTION
+    #                              OCR AND CLAIMS EXTRACTION
     # extract txt in image
     print('Applying OCR and extract each claim in report...')
     get_claims_time = time.time()
@@ -228,7 +220,7 @@ def run(PATH='/home/app/NPDB/data/NPDBQA6.pdf'):
 
 
 
-    #%%                    SEARCHING FOR TOPICS IN CLAIMS
+    #                    SEARCHING FOR TOPICS IN CLAIMS
     print('Processing Topics of the CONFIGURATION TOPICS file')
     inject_time = time.time()
     try:
@@ -239,14 +231,13 @@ def run(PATH='/home/app/NPDB/data/NPDBQA6.pdf'):
         nlp = spacy.load(MODEL_PATH)
 
     # load the configuration files and declare grammar rules 
-    topic_conf = ConfigObj('/home/app/NPDB/config/config_npdb_topics.ino')     # load the interest points
-    Topics = ConfigObj('/home/app/NPDB/config/config_npdb_entites.ino')      # load the NAME ENTITY RULES 
+    topic_conf = ConfigObj('NPDB/config/config_npdb_topics.ino')     # load the interest points
+    Topics = ConfigObj('NPDB/config/config_npdb_entites.ino')      # load the NAME ENTITY RULES 
     open_exp = r"\b[A-Z][A-Z]+\b"                               # reg exp rules                
     mon_exp = r"[^0-9\.0-9]+"
     alpha_exp = r"(?=[A-Za-z])\w+.*(?=[a-z])\w+."
     licensure_exp = r"[A-Z0-9]\w+, [A-Z]{2}" 
    
-    # %%   
     # search for topics and entities
     for dcn, claim in enumerate(claims[1:]): # search for dcn number in every claim 
         
@@ -349,11 +340,10 @@ def run(PATH='/home/app/NPDB/data/NPDBQA6.pdf'):
             if suspects[topic][0] == 'relevant':
                 relevant = False
             if suspects[topic][0] == 'licence':
-                licensure.append(re.findall(licensure_exp, sentence)[0])
-                #aux = re.findall(licensure_exp, sentence)
-                #sentence = ' '.join(aux)
-                #licensure.append(sentence) if sentence != '' else None
-               #licensure.append(,'', sentence)))
+                try:
+                    licensure.append(re.findall(licensure_exp, sentence)[0])
+                except:
+                    licensure.append('')
             if suspects[topic][0] == 'gender':
                 if 'MALE' in sentence:
                     gender = 'MALE'
@@ -470,14 +460,20 @@ def run(PATH='/home/app/NPDB/data/NPDBQA6.pdf'):
             # "type_of_adverse_action": type_of_adverse_action,
             # "dea": DEA
         }
+        
         aux = lossrun.check_null(aux)
 
         data_results.append(aux)
 
-
     print('Ingection time: %f' %(time.time()- inject_time ))
+
+
+    if not db:
+      frame  = DataFrame.from_dict(data_results) 
+      # frame =  frame.dropna(how = 'all', axis = 1)
+      frame.to_csv('results/' + PATH.split('/')[-1][:-4] + ' results.csv')
 
     return data_results
     # END OF CODE
-    # %%
-
+#%%
+run()

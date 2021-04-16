@@ -1,0 +1,16 @@
+[
+    {
+        "license": "R19344, NM', 'AP7678, AZ'", 
+        "npi": "'1780676700'", 
+        "dcn": "'5500000162601705'",
+        "entity_name": "'AMERICAN CASUALTY CO OF READING PA', 'AMERICAN CASUALTY CO OF READING PENNSYLVANIA'", 
+        "practitioner_name": "'SISNEROS, ALICE'", 
+        "action_initial": "'SETTLEMENT'", 
+        "action_basis": "'FAILURE TO RECOGNIZE COMPLICATION', 'FAILURE TO DIAGNOSE'", 
+        "event_outcome": "' DEATH (09)'", 
+        "process_date": "'04/29/2009'", 
+        "payment_date": "'04/08/2009'", 
+        "event_day": "'10/28/2007'",
+        "amount_pract": "'1000000'",
+        "payment_total_amount": "'1000000'"
+    }]

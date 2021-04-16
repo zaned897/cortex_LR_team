@@ -1,0 +1,47 @@
+[
+  {
+    "license": "'ME63345, FL'",
+    "npi": "1376532739",
+    "dcn": "5500000160813746",
+    "entity_name": "'DIVISION OF MEDICAL QUALITY ASSURANCE', 'DIVISION OF MEDICAL QUALITY ASSURANCE'",
+    "practitioner_name": "'CROSSWRIGHT, EARL JAY'",
+    "action_initial": "'REPRIMAND OR CENSURE'",
+    "action_basis": "'NEGLIGENCE'",
+    "event_outcome": null,
+    "process_date": "09/09/2004",
+    "payment_date": null,
+    "event_day": "08/30/2004",
+    "amount_pract": null,
+    "payment_total_amount": "10838"
+  },
+  {
+    "license": "'ME0063345, FL'",
+    "npi": "1376532739",
+    "dcn": "5500000034836733",
+    "entity_name": "'AMERICAN CONTINENTAL INSURANCE COMPANY', 'AMERICAN CONTINENTAL INSURANCE COMPANY'",
+    "practitioner_name": "'CROSSWRIGHT, EARL'",
+    "action_initial": "'SETTLEMENT'",
+    "action_basis": "'MEDICATION NOT OTHERWISE CLASSIFIED'",
+    "event_outcome": null,
+    "process_date": "08/26/1998",
+    "payment_date": "08/14/1998",
+    "event_day": "10/05/1994",
+    "amount_pract": "675000",
+    "payment_total_amount": "675000"
+  },
+  {
+    "license": "'ME0063345, FL'",
+    "npi": "1376532739",
+    "dcn": "5500000025471277",
+    "entity_name": "'DIVISION OF MEDICAL QUALITY ASSURANCE', 'DIVISION OF MEDICAL QUALITY ASSURANCE'",
+    "practitioner_name": "'CROSSWRIGHT, EARL JAY'",
+    "action_initial": "'LICENSE PROBATION ALLOWING UNLICENSED'",
+    "action_basis": null,
+    "event_outcome": null,
+    "process_date": "11/12/1997",
+    "payment_date": null,
+    "event_day": "10/30/1996",
+    "amount_pract": null,
+    "payment_total_amount": null
+  }
+]

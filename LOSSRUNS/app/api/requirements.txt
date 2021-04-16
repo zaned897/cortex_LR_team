@@ -1,0 +1,4 @@
+Flask
+flask_restful
+werkzeug
+flask-cors==3.0.8

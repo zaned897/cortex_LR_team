@@ -30,8 +30,7 @@ class CustomAssertions(object):
             except jsonschema.exceptions.ValidationError as validation_error:
                 return self.assertTrue(False)
 
-
-def assert_fields(self, results, expected_data):
+    def assert_fields(self, results, expected_data):
         print("Validating fields...")
         correct=0
         incorrect=0
